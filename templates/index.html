@@ -1,0 +1,509 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>NoteSync — Sheet Music Decoder</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0e0c0a;
+            --surface: #161410;
+            --card: #1c1916;
+            --border: #2e2a24;
+            --gold: #c9963a;
+            --gold-light: #e8b86d;
+            --gold-glow: rgba(201, 150, 58, 0.15);
+            --text: #f0ead8;
+            --muted: #7a7060;
+            --white: #faf6ee;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Mono', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Grain overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.6;
+        }
+
+        /* Staff lines background */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 300px;
+            background: repeating-linear-gradient(
+                180deg,
+                transparent 0px,
+                transparent 18px,
+                rgba(201,150,58,0.04) 18px,
+                rgba(201,150,58,0.04) 19px
+            );
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 60px 24px 100px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        header {
+            margin-bottom: 64px;
+            animation: fadeDown 0.8s ease both;
+        }
+
+        .eyebrow {
+            font-size: 10px;
+            letter-spacing: 0.3em;
+            color: var(--gold);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(42px, 7vw, 72px);
+            font-weight: 700;
+            line-height: 1.0;
+            color: var(--white);
+            letter-spacing: -0.02em;
+        }
+
+        h1 em {
+            font-style: italic;
+            color: var(--gold-light);
+        }
+
+        .subtitle {
+            margin-top: 16px;
+            font-size: 13px;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+            max-width: 400px;
+        }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--card);
+            padding: 56px 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+            animation: fadeUp 0.8s 0.2s ease both;
+        }
+
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 0%, var(--gold-glow), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .upload-zone:hover::before,
+        .upload-zone.drag-over::before { opacity: 1; }
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: var(--gold);
+            box-shadow: 0 0 40px rgba(201,150,58,0.08);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 20px;
+            opacity: 0.4;
+        }
+
+        .upload-label {
+            font-family: 'Playfair Display', serif;
+            font-size: 20px;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .upload-sub {
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+        }
+
+        #fileInput { display: none; }
+
+        .file-selected {
+            margin-top: 16px;
+            font-size: 11px;
+            color: var(--gold);
+            letter-spacing: 0.05em;
+        }
+
+        /* Convert Button */
+        .btn-convert {
+            margin-top: 20px;
+            width: 100%;
+            padding: 18px;
+            background: var(--gold);
+            color: #0e0c0a;
+            border: none;
+            border-radius: 4px;
+            font-family: 'DM Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s, box-shadow 0.3s;
+            animation: fadeUp 0.8s 0.3s ease both;
+        }
+
+        .btn-convert:hover {
+            background: var(--gold-light);
+            box-shadow: 0 8px 32px rgba(201,150,58,0.25);
+            transform: translateY(-1px);
+        }
+
+        .btn-convert:active { transform: translateY(0); }
+        .btn-convert:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        /* Loading */
+        #loading {
+            display: none;
+            margin-top: 40px;
+            text-align: center;
+            animation: fadeUp 0.5s ease both;
+        }
+
+        .loading-staff {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .note-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--gold);
+            animation: bounce 1.2s infinite ease-in-out;
+        }
+
+        .note-dot:nth-child(2) { animation-delay: 0.2s; }
+        .note-dot:nth-child(3) { animation-delay: 0.4s; }
+        .note-dot:nth-child(4) { animation-delay: 0.6s; }
+
+        .loading-text {
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 0.15em;
+        }
+
+        /* Results */
+        #result {
+            display: none;
+            margin-top: 56px;
+            animation: fadeUp 0.6s ease both;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            color: var(--white);
+        }
+
+        .result-count {
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 0.1em;
+        }
+
+        /* Measures grid */
+        .measures {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+        }
+
+        .measure {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+            animation: fadeUp 0.4s ease both;
+        }
+
+        .measure:hover {
+            border-color: var(--gold);
+            box-shadow: 0 4px 24px rgba(201,150,58,0.1);
+            transform: translateY(-2px);
+        }
+
+        .bar-label {
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .notes-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .note-badge {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gold-light);
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .measure:hover .note-badge {
+            background: var(--gold-glow);
+            border-color: rgba(201,150,58,0.3);
+        }
+
+        /* Piano strip at bottom */
+        .piano-strip {
+            margin-top: 48px;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .piano-keys {
+            display: inline-flex;
+            gap: 3px;
+            padding: 16px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .key {
+            width: 32px;
+            height: 80px;
+            border-radius: 0 0 3px 3px;
+            background: var(--white);
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 6px;
+            font-size: 9px;
+            color: #999;
+            font-family: 'DM Mono', monospace;
+            transition: background 0.2s;
+            cursor: default;
+        }
+
+        .key.active {
+            background: var(--gold-light);
+            border-color: var(--gold);
+            color: #0e0c0a;
+            box-shadow: 0 4px 12px rgba(201,150,58,0.4);
+        }
+
+        .piano-label {
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+        }
+
+        /* Animations */
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <p class="eyebrow">— Optical Music Recognition</p>
+        <h1>Read the <em>music,</em><br>play the notes.</h1>
+        <p class="subtitle">Upload a PNG sheet music image. Get plain note letters, grouped by bar.</p>
+    </header>
+
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <svg class="upload-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M24 32V16M24 16L18 22M24 16L30 22" stroke="#c9963a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 36a4 4 0 01-4-4v-2a10 10 0 0110-10h.5M40 36a4 4 0 004-4v-2a10 10 0 00-10-10h-.5" stroke="#c9963a" stroke-width="1.5" stroke-linecap="round"/>
+            <rect x="10" y="36" width="28" height="2" rx="1" fill="#c9963a" opacity="0.3"/>
+        </svg>
+        <p class="upload-label">Drop sheet music here</p>
+        <p class="upload-sub">PNG only · Click to browse</p>
+        <p class="file-selected" id="fileName"></p>
+        <input type="file" id="fileInput" accept="image/png" onchange="onFileSelect(event)" />
+    </div>
+
+    <button class="btn-convert" onclick="uploadFile()" id="convertBtn">
+        Decode Notes
+    </button>
+
+    <div id="loading">
+        <div class="loading-staff">
+            <div class="note-dot"></div>
+            <div class="note-dot"></div>
+            <div class="note-dot"></div>
+            <div class="note-dot"></div>
+        </div>
+        <p class="loading-text">Reading your sheet music — this takes about 2 minutes</p>
+    </div>
+
+    <div id="result">
+        <div class="result-header">
+            <span class="result-title">Decoded Notes</span>
+            <span class="result-count" id="barCount"></span>
+        </div>
+        <div class="measures" id="measures"></div>
+
+        <div class="piano-strip" id="pianoStrip">
+            <p class="piano-label">Active notes highlighted</p>
+            <div class="piano-keys" id="pianoKeys"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const ALL_NOTES = ['C','D','E','F','G','A','B'];
+
+    // Drag and drop
+    const zone = document.getElementById('uploadZone');
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) setFile(file);
+    });
+
+    function onFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) setFile(file);
+    }
+
+    function setFile(file) {
+        document.getElementById('fileName').textContent = '✓ ' + file.name;
+        window._selectedFile = file;
+    }
+
+    async function uploadFile() {
+        const file = window._selectedFile || document.getElementById('fileInput').files[0];
+        if (!file) { alert('Please select an image first'); return; }
+
+        const btn = document.getElementById('convertBtn');
+        btn.disabled = true;
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('result').style.display = 'none';
+        document.getElementById('measures').innerHTML = '';
+
+        const formData = new FormData();
+        formData.append('sheet', file);
+
+        try {
+            const response = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await response.json();
+
+            document.getElementById('loading').style.display = 'none';
+            btn.disabled = false;
+
+            if (data.error) { alert('Error: ' + data.error); return; }
+
+            renderResults(data.measures);
+        } catch (err) {
+            document.getElementById('loading').style.display = 'none';
+            btn.disabled = false;
+            alert('Something went wrong. Check the server logs.');
+        }
+    }
+
+    function renderResults(measures) {
+        const container = document.getElementById('measures');
+        const allNotes = new Set();
+
+        measures.forEach((notes, i) => {
+            notes.forEach(n => allNotes.add(n));
+            const div = document.createElement('div');
+            div.className = 'measure';
+            div.style.animationDelay = (i * 0.04) + 's';
+
+            const row = notes.map(n => `<span class="note-badge">${n}</span>`).join('');
+            div.innerHTML = `<span class="bar-label">Bar ${i + 1}</span><div class="notes-row">${row}</div>`;
+            container.appendChild(div);
+        });
+
+        document.getElementById('barCount').textContent = measures.length + ' bars';
+        renderPiano(allNotes);
+        document.getElementById('result').style.display = 'block';
+    }
+
+    function renderPiano(activeNotes) {
+        const container = document.getElementById('pianoKeys');
+        container.innerHTML = '';
+        ALL_NOTES.forEach(note => {
+            const key = document.createElement('div');
+            key.className = 'key' + (activeNotes.has(note) ? ' active' : '');
+            key.textContent = note;
+            container.appendChild(key);
+        });
+    }
+</script>
+</body>
+</html>
