@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+uploaded.png
+uploaded.pdf
+uploaded.musicxml
+Image_teaser.png
+*.h5
+*.onnx
