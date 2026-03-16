@@ -1,4 +1,4 @@
-﻿from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template
 import xml.etree.ElementTree as ET
 import subprocess
 import os
@@ -14,10 +14,20 @@ def index():
 @app.route("/upload", methods=["POST"])
 def upload():
     file = request.files["sheet"]
+    filename = file.filename.lower()
     input_path = os.path.join(BASE_DIR, "uploaded.png")
     output_path = os.path.join(BASE_DIR, "uploaded.musicxml")
 
-    file.save(input_path)
+    if filename.endswith(".pdf"):
+        import fitz
+        pdf_path = os.path.join(BASE_DIR, "uploaded.pdf")
+        file.save(pdf_path)
+        doc = fitz.open(pdf_path)
+        page = doc[0]
+        pix = page.get_pixmap(dpi=200)
+        pix.save(input_path)
+    else:
+        file.save(input_path)
 
     result = subprocess.run(
         ["oemer", "uploaded.png"],
@@ -33,7 +43,6 @@ def upload():
     root = tree.getroot()
 
     measures = []
-
     for measure in root.iter("measure"):
         measure_notes = []
         for note in measure.iter("note"):
@@ -44,7 +53,14 @@ def upload():
                 continue
             pitch = note.find("pitch")
             if pitch is not None:
-                measure_notes.append(pitch.find("step").text)
+                step = pitch.find("step").text
+                alter = pitch.find("alter")
+                if alter is not None:
+                    if alter.text == "1":
+                        step = step + "#"
+                    elif alter.text == "-1":
+                        step = step + "b"
+                measure_notes.append(step)
         if measure_notes:
             measures.append(measure_notes)
 
