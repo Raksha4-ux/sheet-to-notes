@@ -1,16 +1,16 @@
-# 🎵 Sheet Music to Notes
+#  Sheet Music to Notes
 
 Convert sheet music images into plain note letters for beginner pianists.
 
-**No music theory required. Just upload and play.**
+**No music theory required. **
 
 ---
 
 ## What It Does
 
-Most sheet music is unreadable if you never learned how to read it. This tool takes a sheet music image and converts it into plain letters — `C D E F G A B` — grouped by bar.
+Most sheet music is unreadable if you never learned how to read it. This tool takes a sheet music image and converts it into plain letters :`C D E F G A B`  grouped by bar.
 
-Upload an image. Get your notes. Sit at the keyboard and play.
+Upload an image. Get your notes. Play the keyboaard.
 
 ---
 
@@ -96,5 +96,13 @@ sheet-to-notes/
 │   └── index.html          # Frontend UI
 └── README.md
 ```
+## Demo
+<img width="616" height="672" alt="Screenshot 2026-03-14 190019" src="https://github.com/user-attachments/assets/8c3dced2-b512-489b-bfdd-dab47f7ca37d" />
+<img width="1673" height="841" alt="Screenshot 2026-03-16 191014" src="https://github.com/user-attachments/assets/7bd555ea-bda7-4214-bb13-be0929a32ca2" />
+<img width="1646" height="835" alt="Screenshot 2026-03-16 202127" src="https://github.com/user-attachments/assets/6f7b8484-ef9c-46ab-a46d-80442140a5cf" />
+
+
+
+
 
 
