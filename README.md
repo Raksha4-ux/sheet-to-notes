@@ -14,17 +14,7 @@ Upload an image. Get your notes. Sit at the keyboard and play.
 
 ---
 
-## Demo
 
-> Upload a PNG of any sheet music → get notes like this:
-
-| Bar 1 | Bar 2 | Bar 3 | Bar 4 |
-|-------|-------|-------|-------|
-| C C G G | A A G | F F E E | D D C |
-
-*(Twinkle Twinkle Little Star)*
-
----
 
 ## Tech Stack
 
